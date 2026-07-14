@@ -16,22 +16,14 @@ import App from './App.vue'
 // Styles
 import 'unfonts.css'
 
-import formidable from 'formidable';
-
 const app = createApp(App)
 
 registerPlugins(app)
 
 app.mount('#app')
 
-var uploaded_binary;
-var uploaded_file_path;
-var uploaded_file_size;
-
 const form = document.querySelector('form');
 form.addEventListener('submit', handleSubmit);
-
-
 
 /** @param {Event} event */
 function handleSubmit(event) {
@@ -69,34 +61,15 @@ export default defineEventHandler(async (event) => {
   let body;
   const headers = getRequestHeaders(event);
 
+  /**
   if (headers['content-type']?.includes('multipart/form-data')) {
     body = await parseMultipartNodeRequest(event.node.req);
   } else {
     body = await readBody(event);
-  }
+  }*/
+  body = await readBody(event);
   console.log(body);
-  uploaded_binary = body;
 
   return { ok: true };
 });
-
-/**
- * @param {import('http').IncomingMessage} req
- */
-function parseMultipartNodeRequest(req) {
-  return new Promise((resolve, reject) => {
-    /** @see https://github.com/node-formidable/formidable/ */
-    const form = formidable({
-      multiples: true
-    })
-    form.parse(req, (error, fields, files) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve({ ...fields, ...files });
-    });
-  });
-}
-
 
