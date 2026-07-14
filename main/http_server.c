@@ -31,6 +31,7 @@
 #include "esp_eth.h"
 #endif  // !CONFIG_IDF_TARGET_LINUX
 
+#include "http_server.h"
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 
@@ -38,7 +39,7 @@
  * handlers for the web server.
  */
 
-static const char *TAG = "ESP32X2_REPRO";
+static const char *TAG = "ESP32x2_REPRO_HTTP_SERVER";
 
 #if CONFIG_EXAMPLE_BASIC_AUTH
 
@@ -495,7 +496,7 @@ static void connect_handler(void* arg, esp_event_base_t event_base,
 }
 #endif // !CONFIG_IDF_TARGET_LINUX
 
-void app_main(void)
+void http_server_main(void)
 {
     static httpd_handle_t server = NULL;
 

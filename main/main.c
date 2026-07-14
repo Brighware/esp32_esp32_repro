@@ -37,7 +37,7 @@ extern const uint32_t app_bin_size;
 extern const uint8_t app_bin_md5[];
 
 
-static const char *TAG = "usb_flasher";
+static const char *TAG = "ESP32x2_REPRO_MAIN";
 static SemaphoreHandle_t device_disconnected_sem;
 
 /**
