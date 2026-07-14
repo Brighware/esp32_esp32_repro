@@ -496,6 +496,11 @@ static void connect_handler(void* arg, esp_event_base_t event_base,
 }
 #endif // !CONFIG_IDF_TARGET_LINUX
 
+/**
+ * @brief Main HTTP Server function
+ *
+ * Here we initialize and execute the HTTP Server
+ */
 void http_server_main(void)
 {
     static httpd_handle_t server = NULL;
