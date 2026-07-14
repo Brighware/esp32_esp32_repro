@@ -33,6 +33,7 @@
 #include "protocol_examples_common.h"
 #include "esp_loader.h"
 #include "esp32_port.h"
+#include "file_serving_example_common.h"
 
 #include "config.h"
 
@@ -98,6 +99,7 @@ esp_err_t init_fs(void)
 
 void app_main(void)
 {
+    ESP_LOGI(TAG, "Starting main...");
     esp32_port_t port = {
       .port.ops          = &esp32_uart_ops,
       .baud_rate         = 115200,
@@ -116,7 +118,15 @@ void app_main(void)
     initialise_mdns();
     netbiosns_init();
     netbiosns_set_name(MDNS_HOST_NAME);
+     /* Initialize file storage */
+    const char* base_path = "/data";
+    ESP_ERROR_CHECK(example_mount_storage(base_path));
+
+
     ESP_ERROR_CHECK(example_connect());
-    ESP_ERROR_CHECK(init_fs());
-    ESP_ERROR_CHECK(start_rest_server(WEB_PAGE_MOUNT_POINT_IN_FS));
+    /* Start the file server */
+    ESP_ERROR_CHECK(example_start_file_server(base_path));
+    ESP_LOGI(TAG, "Repro server started");
+//    ESP_ERROR_CHECK(init_fs());
+//    ESP_ERROR_CHECK(start_rest_server(WEB_PAGE_MOUNT_POINT_IN_FS));
 }
