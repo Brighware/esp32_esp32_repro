@@ -1157,6 +1157,13 @@ CONFIG_GDMA_OBJ_DRAM_SAFE=y
 # end of ESP-Driver:GPIO Configurations
 
 #
+# ESP-Driver:SD Host SDMMC Controller Configurations
+#
+# default:
+# CONFIG_SD_HOST_SDMMC_ISR_CACHE_SAFE is not set
+# end of ESP-Driver:SD Host SDMMC Controller Configurations
+
+#
 # ESP-Driver:SPI Configurations
 #
 # default:
@@ -3316,6 +3323,54 @@ CONFIG_CJSON_NESTING_LIMIT=1000
 # default:
 CONFIG_CJSON_CIRCULAR_LIMIT=10000
 # end of cJSON
+
+#
+# ESP serial flasher
+#
+# default:
+CONFIG_SERIAL_FLASHER_RESET_HOLD_TIME_MS=100
+# default:
+CONFIG_SERIAL_FLASHER_BOOT_HOLD_TIME_MS=50
+# default:
+# CONFIG_SERIAL_FLASHER_LOG_LEVEL_NONE is not set
+# default:
+# CONFIG_SERIAL_FLASHER_LOG_LEVEL_ERROR is not set
+# default:
+CONFIG_SERIAL_FLASHER_LOG_LEVEL_WARN=y
+# default:
+# CONFIG_SERIAL_FLASHER_LOG_LEVEL_INFO is not set
+# default:
+# CONFIG_SERIAL_FLASHER_LOG_LEVEL_DEBUG is not set
+# default:
+CONFIG_SERIAL_FLASHER_LOG_LEVEL=2
+# default:
+CONFIG_SERIAL_FLASHER_WRITE_BLOCK_RETRIES=3
+# default:
+# CONFIG_SERIAL_FLASHER_RESET_INVERT is not set
+# default:
+# CONFIG_SERIAL_FLASHER_BOOT_INVERT is not set
+
+#
+# Port selection
+#
+
+#
+# Select which built-in port implementations to compile into the library.
+#
+
+#
+# Enable multiple ports to allow runtime switching between interfaces.
+#
+# default:
+CONFIG_SERIAL_FLASHER_PORT_UART=y
+# default:
+# CONFIG_SERIAL_FLASHER_PORT_SPI is not set
+# default:
+# CONFIG_SERIAL_FLASHER_PORT_SDIO is not set
+# default:
+# CONFIG_SERIAL_FLASHER_PORT_USB_CDC_ACM is not set
+# end of Port selection
+# end of ESP serial flasher
 
 #
 # mDNS

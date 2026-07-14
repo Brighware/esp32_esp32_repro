@@ -31,17 +31,22 @@
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
 #include "protocol_examples_common.h"
+#include "esp_loader.h"
+#include "esp32_port.h"
 
+#include "config.h"
 
 /* rest server */
 #define MDNS_INSTANCE "dashboard web server"
 #define MDNS_HOST_NAME CONFIG_EXAMPLE_MDNS_HOST_NAME
 #define WEB_PAGE_MOUNT_POINT_IN_FS CONFIG_EXAMPLE_WEB_MOUNT_POINT
 
+
 [[maybe_unused]] static const char *TAG = "esp32_esp32_repro_main";
 
 extern esp_err_t start_rest_server(const char *base_path);
-
+extern esp_err_t serial_flasher_init(esp_loader_t load, esp32_port_t port);
+extern esp_err_t serial_flasher_flash(const uint8_t *data, esp_loader_t load);
 
 static void initialise_mdns(void)
 {
@@ -93,9 +98,20 @@ esp_err_t init_fs(void)
 
 void app_main(void)
 {
+    esp32_port_t port = {
+      .port.ops          = &esp32_uart_ops,
+      .baud_rate         = 115200,
+      .uart_port         = UART_NUM_1,
+      .uart_rx_pin       = GPIO_NUM_5,
+      .uart_tx_pin       = GPIO_NUM_4,
+      .reset_pin = GPIO_NUM_25,
+      .boot_pin  = GPIO_NUM_26,
+    };
+
+    esp_loader_t loader;
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(serial_flasher_init());
+    serial_flasher_init(loader, port);
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     initialise_mdns();
     netbiosns_init();

@@ -14,7 +14,7 @@
 #include "esp_vfs.h"
 #include "cJSON.h"
 
-
+#include "config.h"
 static const char *TAG = "esp-rest";
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
