@@ -5,9 +5,44 @@
     <link rel="icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome to Dashboard</title>
+    <style>
+        body {
+            width: fit-content;
+        }
+        table, tr, th {
+            border: 1px solid;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        th, td {
+            padding:10px;
+        }
+        tr:hover, tr.selected {
+            background-color: lightblue;
+            cursor:pointer;
+        }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <h1>ESP32^2 Repro Tool</h1>
+    <div id="app">
+      <div id="upload">
+        <h2>Upload binary file</h2>
+        <form method="post" enctype="multipart/form-data">
+          <label for="file">File</label>
+          <input id="file" name="file" type="file" />
+          <button>Upload</button>
+        </form>
+      </div>
+      <div id="run">
+        <p>
+          <button type="button" onClick="runFlash()">Flash</button>
+        </p>
+        </div>
+      <div id="system-options">
+        <button type="button" onClick="runReboot()">Reboot</button>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

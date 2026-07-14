@@ -13,6 +13,7 @@
     "@fontsource/roboto": "~5.2.8",
     "@mdi/js": "~7.4.47",
     "alova": "~3.3.4",
+    "formidable": "^3.5.4",
     "vue": "~3.5.22",
     "vuetify": "~3.10.5"
   },
