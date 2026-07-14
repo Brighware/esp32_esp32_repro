@@ -47,7 +47,7 @@ function handleSubmit(event) {
   } else {
     url.search = searchParams;
   }
-
+  console.log(fetchOptions.body);
   fetch(url, fetchOptions);
 
   event.preventDefault();
