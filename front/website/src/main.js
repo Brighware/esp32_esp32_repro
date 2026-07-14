@@ -17,7 +17,6 @@ import App from './App.vue'
 import 'unfonts.css'
 
 import formidable from 'formidable';
-import stream from 'node:stream';
 
 const app = createApp(App)
 
@@ -33,10 +32,6 @@ const form = document.querySelector('form');
 form.addEventListener('submit', handleSubmit);
 
 
-/** @param {import('formidable').File} file */
-function fileWriteStreamHandler(file) {
-  // TODO
-}
 
 /** @param {Event} event */
 function handleSubmit(event) {
@@ -92,8 +87,7 @@ function parseMultipartNodeRequest(req) {
   return new Promise((resolve, reject) => {
     /** @see https://github.com/node-formidable/formidable/ */
     const form = formidable({
-      multiples: true,
-      fileWriteStreamHandler: fileWriteStreamHandler,
+      multiples: true
     })
     form.parse(req, (error, fields, files) => {
       if (error) {
