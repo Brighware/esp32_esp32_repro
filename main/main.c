@@ -1,134 +1,106 @@
 /*
- * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2010-2025 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ * SPDX-License-Identifier: CC0-1.0
  */
-/* Flashing multiple partitions over USB CDC ACM interface
 
-    This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-    Unless required by applicable law or agreed to in writing, this
-    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-    CONDITIONS OF ANY KIND, either express or implied.
-*/
-
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+#include <assert.h>
+#include "sdkconfig.h"
+#include "esp_littlefs.h"
+#include "nvs_flash.h"
+#include "esp_netif.h"
+#include "esp_event.h"
 #include "esp_log.h"
 #include "esp_err.h"
-#include "esp_loader.h"
-#include "esp32_usb_cdc_acm_port.h"
-#include "example_common.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/semphr.h"
+#include "freertos/queue.h"
 
+#include "driver/gpio.h"
+#include "usb/cdc_host_types.h"
 #include "usb/usb_host.h"
 #include "usb/cdc_acm_host.h"
+#include "usb/vcp_ch34x.h"
+#include "usb/vcp_cp210x.h"
+#include "usb/vcp_ftdi.h"
 
-// Embedded binary files using bin2array.cmake
-extern const uint8_t bootloader_bin[];
-extern const uint32_t bootloader_bin_size;
-extern const uint8_t bootloader_bin_md5[];
-extern const uint8_t partition_table_bin[];
-extern const uint32_t partition_table_bin_size;
-extern const uint8_t partition_table_bin_md5[];
-extern const uint8_t app_bin[];
-extern const uint32_t app_bin_size;
-extern const uint8_t app_bin_md5[];
+#include "mdns.h"
+#include "lwip/apps/netbiosns.h"
+#include "protocol_examples_common.h"
 
 
-static const char *TAG = "ESP32x2_REPRO_MAIN";
-static SemaphoreHandle_t device_disconnected_sem;
+/* rest server */
+#define MDNS_INSTANCE "dashboard web server"
+#define MDNS_HOST_NAME CONFIG_EXAMPLE_MDNS_HOST_NAME
+#define WEB_PAGE_MOUNT_POINT_IN_FS CONFIG_EXAMPLE_WEB_MOUNT_POINT
 
-/**
- * @brief USB Host library handling task
- *
- * @param arg Unused
- */
-static void usb_lib_task(void *arg)
+[[maybe_unused]] static const char *TAG = "esp32_esp32_repro_main";
+
+extern esp_err_t start_rest_server(const char *base_path);
+
+
+static void initialise_mdns(void)
 {
-    while (1) {
-        /* Start handling system events */
-        uint32_t event_flags;
-        usb_host_lib_handle_events(portMAX_DELAY, &event_flags);
-        if (event_flags & USB_HOST_LIB_EVENT_FLAGS_NO_CLIENTS) {
-            ESP_ERROR_CHECK(usb_host_device_free_all());
+    mdns_init();
+    mdns_hostname_set(MDNS_HOST_NAME);
+    mdns_instance_name_set(MDNS_INSTANCE);
+
+    mdns_txt_item_t serviceTxtData[] = {
+        {"chip", CONFIG_IDF_TARGET},
+        {"path", "/"}
+    };
+
+    ESP_ERROR_CHECK(mdns_service_add("ESP32-WebServer", "_http", "_tcp", 80, serviceTxtData,
+                                     sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
+}
+
+esp_err_t init_fs(void)
+{
+#if CONFIG_EXAMPLE_DEPLOY_WEB_PAGES
+    esp_vfs_littlefs_conf_t conf = {
+        .base_path = WEB_PAGE_MOUNT_POINT_IN_FS,
+        .partition_label = "www",
+        .format_if_mount_failed = true,
+    };
+    esp_err_t ret = esp_vfs_littlefs_register(&conf);
+
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount or format filesystem");
+        } else if (ret == ESP_ERR_NOT_FOUND) {
+            ESP_LOGE(TAG, "Failed to find LittleFS partition");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize LittleFS (%s)", esp_err_to_name(ret));
         }
-        if (event_flags & USB_HOST_LIB_EVENT_FLAGS_ALL_FREE) {
-            ESP_LOGI(TAG, "USB: All devices freed");
-            /* Continue handling USB events to allow device reconnection */
-        }
+        return ESP_FAIL;
     }
+
+    size_t total = 0, used = 0;
+    ret = esp_littlefs_info(conf.partition_label, &total, &used);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to get LittleFS partition information (%s)", esp_err_to_name(ret));
+        esp_littlefs_format(conf.partition_label);
+    } else {
+        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+    }
+#endif // CONFIG_EXAMPLE_DEPLOY_WEB_PAGES
+    return ESP_OK;
 }
 
-static void device_disconnected_callback(void)
-{
-    xSemaphoreGive(device_disconnected_sem);
-}
-
-/**
- * @brief Main application
- *
- * Here we open a connection with any ESP32-S3 device connected and try flashing it
- */
 void app_main(void)
 {
-    esp_loader_t loader;
-
-    /* Install USB Host driver. Should only be called once in entire application */
-    ESP_LOGI(TAG, "Installing USB Host");
-    const usb_host_config_t host_config = {
-        .skip_phy_setup = false,
-        .intr_flags = ESP_INTR_FLAG_LEVEL1,
-    };
-    ESP_ERROR_CHECK(usb_host_install(&host_config));
-
-    /* Create a task that will handle USB library events */
-    BaseType_t task_created = xTaskCreate(usb_lib_task,
-                                        "usb_lib",
-                                        4096,
-                                        xTaskGetCurrentTaskHandle(),
-                                        20,
-                                        NULL);
-    assert(task_created == pdTRUE);
-
-    ESP_LOGI(TAG, "Installing the USB CDC-ACM driver");
-    ESP_ERROR_CHECK(cdc_acm_host_install(NULL));
-
-    esp32_usb_cdc_acm_port_t port = {
-        .port.ops                     = &esp32_usb_cdc_acm_ops,
-        .device_vid                   = USB_VID_PID_AUTO_DETECT,
-        .device_pid                   = USB_VID_PID_AUTO_DETECT,
-        .connection_timeout_ms        = 1000,
-        .out_buffer_size              = 4096,
-        .device_disconnected_callback = device_disconnected_callback,
-    };
-
-    while (true) {
-        ESP_LOGI(TAG, "Opening CDC ACM device 0x%04X:0x%04X...", port.device_vid, port.device_pid);
-        if (esp_loader_init_serial(&loader, &port.port) != ESP_LOADER_SUCCESS) {
-            continue;
-        }
-
-        device_disconnected_sem = xSemaphoreCreateBinary();
-        assert(device_disconnected_sem);
-
-        /* The ESP32-S3 ignores the line coding set commands,
-           so we don't set the higher baudrate argument */
-        if (connect_to_target(&loader, 0) == ESP_LOADER_SUCCESS) {
-
-            ESP_LOGI(TAG, "Loading bootloader...");
-            target_chip_t chip = esp_loader_get_target(&loader);
-            uint32_t bootloader_addr = get_bootloader_address(chip);
-            flash_binary(&loader, bootloader_bin, bootloader_bin_size, bootloader_addr);
-            ESP_LOGI(TAG, "Loading partition table...");
-            flash_binary(&loader, partition_table_bin, partition_table_bin_size, PARTITION_TABLE_ADDRESS);
-            ESP_LOGI(TAG, "Loading app...");
-            flash_binary(&loader, app_bin, app_bin_size, APPLICATION_ADDRESS);
-            ESP_LOGI(TAG, "Done!");
-        }
-
-        /* Wait for device disconnection and start over */
-        xSemaphoreTake(device_disconnected_sem, portMAX_DELAY);
-    }
+    ESP_ERROR_CHECK(nvs_flash_init());
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(serial_flasher_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    initialise_mdns();
+    netbiosns_init();
+    netbiosns_set_name(MDNS_HOST_NAME);
+    ESP_ERROR_CHECK(example_connect());
+    ESP_ERROR_CHECK(init_fs());
+    ESP_ERROR_CHECK(start_rest_server(WEB_PAGE_MOUNT_POINT_IN_FS));
 }
