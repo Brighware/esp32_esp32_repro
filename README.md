@@ -13,8 +13,7 @@
 ## Structure
 - `WiFi AP` -> AP running on ESP32 (ToolESP)
 - `HTTP Server` -> Hosts html page for repro configuration, firmware upload, and control. (ToolESP)
-- `USB CDC` -> Connects ToolESP to TargetESP for reprogramming
-- `esptool` -> tool to do the actual reprogramming.
+- `esp-serial-flasher` -> Connects ToolESP to TargetESP for reprogramming
 
 ### WiFi AP
 
@@ -22,9 +21,8 @@
 
 #### HTML Page
 
-### USB CDC
+### esp-serial-flasher
 
-#### esptool
 
 
 
@@ -32,5 +30,4 @@
 - [ ] WiFi AP
   - [ ] HTTP Server
   - [ ] HTML Page
-- [ ] USB-CDC
-- [ ] Reprogramming
+- [ ] esp-serial-flasher

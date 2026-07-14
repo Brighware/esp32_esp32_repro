@@ -1,12 +1,22 @@
-set(requires esp-tls nvs_flash esp_netif esp_http_server)
-idf_build_get_property(target IDF_TARGET)
+set(srcs main.c ../common/example_common.c)
+set(include_dirs . ../common)
 
-if(${target} STREQUAL "linux")
-    list(APPEND requires esp_stubs protocol_examples_common)
-else()
-    list(APPEND requires esp_wifi esp_eth)
-endif()
+idf_component_register(SRCS ${srcs}
+                       INCLUDE_DIRS ${include_dirs}
+                       PRIV_REQUIRES esp-serial-flasher usb)
+set(target ${COMPONENT_LIB})
 
-idf_component_register(SRCS "main.c"
-                    INCLUDE_DIRS "."
-                    PRIV_REQUIRES ${requires})
+set(target_firmware_dir ${CMAKE_SOURCE_DIR}/target-firmware)
+include(${CMAKE_SOURCE_DIR}/common/require_target_firmware.cmake)
+esp_serial_flasher_require_target_firmware("esp32x2_repro" "${target_firmware_dir}"
+    bootloader.bin
+    partition-table.bin
+    app.bin)
+
+# Embed binaries into the app using bin2array.cmake which is able to generate md5sum of the binary.
+# In ESP-IDF this can also be done using EMBED_FILES option of idf_component_register.
+# But the md5sum of the binary, is not supported by the EMBED_FILES option.
+include(${CMAKE_SOURCE_DIR}/common/bin2array.cmake)
+create_resources(${target_firmware_dir} ${CMAKE_BINARY_DIR}/target_firmware_data.c)
+set_property(SOURCE ${CMAKE_BINARY_DIR}/target_firmware_data.c PROPERTY GENERATED 1)
+target_sources(${target} PRIVATE ${CMAKE_BINARY_DIR}/target_firmware_data.c)
